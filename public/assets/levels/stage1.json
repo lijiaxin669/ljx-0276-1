@@ -1,0 +1,22 @@
+{
+  "stage": 1,
+  "name": "运球",
+  "description": "玩家A用WASD带球穿越障碍到达接力区",
+  "player": "A",
+  "ballStart": { "x": 120, "y": 300 },
+  "playerStart": { "x": 80, "y": 300 },
+  "relayZone": { "x": 850, "y": 250, "width": 100, "height": 100 },
+  "obstacles": [
+    { "x": 250, "y": 180, "width": 30, "height": 140 },
+    { "x": 400, "y": 280, "width": 30, "height": 140 },
+    { "x": 550, "y": 150, "width": 30, "height": 160 },
+    { "x": 700, "y": 300, "width": 30, "height": 120 }
+  ],
+  "collectibles": [
+    { "x": 320, "y": 120, "points": 100 },
+    { "x": 480, "y": 450, "points": 100 },
+    { "x": 630, "y": 100, "points": 200 }
+  ],
+  "timeBonus": { "thresholdMs": 20000, "bonus": 500 },
+  "background": { "color": "#2d5a27" }
+}

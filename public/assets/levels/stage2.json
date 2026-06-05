@@ -1,0 +1,25 @@
+{
+  "stage": 2,
+  "name": "传球",
+  "description": "在接力区停留0.5秒完成传球，控制权从A切换到B",
+  "playerA": "A",
+  "playerB": "B",
+  "ballStart": { "x": 850, "y": 300 },
+  "playerAStart": { "x": 800, "y": 300 },
+  "playerBStart": { "x": 120, "y": 300 },
+  "relayZone": { "x": 420, "y": 240, "width": 160, "height": 120 },
+  "dwellTimeMs": 500,
+  "obstacles": [
+    { "x": 300, "y": 200, "width": 40, "height": 100 },
+    { "x": 560, "y": 300, "width": 40, "height": 100 },
+    { "x": 200, "y": 380, "width": 80, "height": 30 },
+    { "x": 650, "y": 160, "width": 80, "height": 30 }
+  ],
+  "collectibles": [
+    { "x": 350, "y": 140, "points": 150 },
+    { "x": 500, "y": 420, "points": 150 },
+    { "x": 250, "y": 300, "points": 200 }
+  ],
+  "timeBonus": { "thresholdMs": 25000, "bonus": 500 },
+  "background": { "color": "#1a3a5c" }
+}

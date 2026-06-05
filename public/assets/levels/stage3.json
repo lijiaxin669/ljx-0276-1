@@ -1,0 +1,22 @@
+{
+  "stage": 3,
+  "name": "射门",
+  "description": "玩家B用方向键带球射门得分",
+  "player": "B",
+  "ballStart": { "x": 120, "y": 300 },
+  "playerStart": { "x": 80, "y": 300 },
+  "goal": { "x": 870, "y": 200, "width": 60, "height": 200 },
+  "goalkeeper": { "x": 840, "y": 260, "width": 30, "height": 80, "speed": 120, "range": 160 },
+  "obstacles": [
+    { "x": 350, "y": 200, "width": 30, "height": 120 },
+    { "x": 550, "y": 320, "width": 30, "height": 120 },
+    { "x": 650, "y": 180, "width": 30, "height": 100 }
+  ],
+  "collectibles": [
+    { "x": 450, "y": 140, "points": 200 },
+    { "x": 600, "y": 440, "points": 200 }
+  ],
+  "shootBonus": { "centerTarget": 1000, "sideTarget": 500 },
+  "timeBonus": { "thresholdMs": 25000, "bonus": 500 },
+  "background": { "color": "#3a5a1a" }
+}
