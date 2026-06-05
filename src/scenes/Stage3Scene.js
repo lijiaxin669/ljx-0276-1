@@ -157,7 +157,7 @@ export default class Stage3Scene extends Phaser.Scene {
     if (this.stageComplete) return;
 
     const gkSpeed = this.gkCfg.speed;
-    this.goalkeeper.y += gkDirection * gkSpeed * (delta / 1000);
+    this.goalkeeper.y += this.gkDirection * gkSpeed * (delta / 1000);
     if (this.goalkeeper.y > this.gkBaseY + this.gkCfg.range / 2) {
       this.gkDirection = -1;
     } else if (this.goalkeeper.y < this.gkBaseY - this.gkCfg.range / 2) {

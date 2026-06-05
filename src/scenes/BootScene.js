@@ -7,6 +7,10 @@ export default class BootScene extends Phaser.Scene {
   }
 
   preload() {
+    this.load.json('stage1', 'assets/levels/stage1.json');
+    this.load.json('stage2', 'assets/levels/stage2.json');
+    this.load.json('stage3', 'assets/levels/stage3.json');
+
     const g = this.make.graphics({ x: 0, y: 0, add: false });
 
     g.fillStyle(0x4488ff);
