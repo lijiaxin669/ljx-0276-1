@@ -12,6 +12,12 @@ export default class GameOverScene extends Phaser.Scene {
     const totalScore = this.registry.get('totalScore') || 0;
     const stageScores = this.registry.get('stageScores') || [];
 
+    this.audio = this.plugins.get('AudioManager');
+    if (this.audio) {
+      this.audio.stopBgm();
+      this.audio.play(success ? 'success' : 'fail');
+    }
+
     this.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x1a0a2e).setOrigin(0);
 
     const titleColor = success ? '#00ff88' : '#ff4444';
@@ -77,17 +83,26 @@ export default class GameOverScene extends Phaser.Scene {
       padding: { x: 20, y: 8 },
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
 
-    submitBtn.on('pointerdown', () => this.submitScore(nickname));
+    submitBtn.on('pointerdown', () => {
+      if (this.audio) this.audio.play('click');
+      this.submitScore(nickname);
+    });
 
     const retryBtn = this.add.text(GAME_WIDTH / 2 - 80, GAME_HEIGHT - 50, '再来一次', {
       fontSize: '20px', fontFamily: 'Arial', color: '#4488ff',
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-    retryBtn.on('pointerdown', () => this.scene.start('MenuScene'));
+    retryBtn.on('pointerdown', () => {
+      if (this.audio) this.audio.play('click');
+      this.scene.start('MenuScene');
+    });
 
     const menuBtn = this.add.text(GAME_WIDTH / 2 + 80, GAME_HEIGHT - 50, '返回菜单', {
       fontSize: '20px', fontFamily: 'Arial', color: '#aaaaaa',
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-    menuBtn.on('pointerdown', () => this.scene.start('MenuScene'));
+    menuBtn.on('pointerdown', () => {
+      if (this.audio) this.audio.play('click');
+      this.scene.start('MenuScene');
+    });
 
     this.submitted = false;
   }
@@ -106,6 +121,9 @@ export default class GameOverScene extends Phaser.Scene {
     const lbBtn = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT - 70, '查看排行榜', {
       fontSize: '20px', fontFamily: 'Arial', color: '#ffcc00',
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-    lbBtn.on('pointerdown', () => this.scene.start('LeaderboardScene'));
+    lbBtn.on('pointerdown', () => {
+      if (this.audio) this.audio.play('click');
+      this.scene.start('LeaderboardScene');
+    });
   }
 }

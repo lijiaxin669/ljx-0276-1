@@ -3,6 +3,7 @@ import {
   GAME_WIDTH, GAME_HEIGHT, BALL_RADIUS, PLAYER_SIZE,
   PLAYER_SPEED, BALL_FRICTION, BALL_KICK_FORCE,
 } from '../constants.js';
+import PowerUpManager from '../systems/PowerUpManager.js';
 
 export default class Stage3Scene extends Phaser.Scene {
   constructor() {
@@ -19,6 +20,7 @@ export default class Stage3Scene extends Phaser.Scene {
     this.stageScore = 0;
     this.stageStartTime = this.time.now;
     this.stageComplete = false;
+    this.audio = this.plugins.get('AudioManager');
 
     const timerPlugin = this.plugins.get('GlobalTimerPlugin');
     if (timerPlugin) timerPlugin.startTimer(this);
@@ -89,12 +91,27 @@ export default class Stage3Scene extends Phaser.Scene {
     this.physics.add.collider(this.ball, this.goalkeeper);
     this.physics.add.overlap(this.player, this.collectibles, this.collectItem, null, this);
 
+    // 道具系统
+    this.powerups = new PowerUpManager(this, {
+      onPickup: (gained) => {
+        this.stageScore += gained;
+        this.scoreText.setText('得分: ' + this.stageScore);
+        if (this.audio) this.audio.play('powerup');
+      },
+    });
+    this.powerups.registerCollector(this.player);
+    this.powerups.setBall(this.ball);
+    this.powerups.spawnFromConfig(cfg.powerups);
+
     this.cursors = {
       up: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.UP),
       left: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.LEFT),
       down: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.DOWN),
       right: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.RIGHT),
     };
+
+    this.input.keyboard.on('keydown-ESC', this.openPause, this);
+    this.input.keyboard.on('keydown-P', this.openPause, this);
 
     this.scoreText = this.add.text(16, 16, '得分: 0', {
       fontSize: '20px', fontFamily: 'Arial', color: '#ffffff',
@@ -118,6 +135,7 @@ export default class Stage3Scene extends Phaser.Scene {
 
     this.physics.world.pause();
     let count = 3;
+    if (this.audio) this.audio.play('tick');
     this.time.addEvent({
       delay: 800,
       repeat: 2,
@@ -125,8 +143,10 @@ export default class Stage3Scene extends Phaser.Scene {
         count--;
         if (count > 0) {
           this.countdownText.setText(String(count));
+          if (this.audio) this.audio.play('tick');
         } else {
           this.countdownText.setText('GO!');
+          if (this.audio) this.audio.play('go');
           this.time.delayedCall(400, () => {
             this.countdownText.destroy();
             this.physics.world.resume();
@@ -134,6 +154,14 @@ export default class Stage3Scene extends Phaser.Scene {
         }
       },
     });
+  }
+
+  openPause() {
+    if (this.stageComplete) return;
+    if (this.scene.isActive('PauseScene')) return;
+    if (this.audio) this.audio.play('click');
+    this.scene.launch('PauseScene', { stageKey: this.scene.key });
+    this.scene.pause();
   }
 
   kickBall(player, ball) {
@@ -144,12 +172,15 @@ export default class Stage3Scene extends Phaser.Scene {
 
     const force = this.ball.x > GAME_WIDTH * 0.7 ? BALL_KICK_FORCE * 1.5 : BALL_KICK_FORCE;
     ball.setVelocity((dx / dist) * force, (dy / dist) * force * 0.6);
+    if (this.audio) this.audio.play('kick');
   }
 
   collectItem(player, coin) {
-    const pts = coin.getData('points') || 100;
+    const base = coin.getData('points') || 100;
+    const pts = Math.round(base * this.powerups.getScoreMultiplier());
     this.stageScore += pts;
     this.scoreText.setText('得分: ' + this.stageScore);
+    if (this.audio) this.audio.play('collect');
     coin.destroy();
   }
 
@@ -164,15 +195,18 @@ export default class Stage3Scene extends Phaser.Scene {
       this.gkDirection = 1;
     }
 
+    const speed = PLAYER_SPEED * this.powerups.getSpeedMultiplier();
     const body = this.player.body;
     body.setVelocity(0);
-    if (this.cursors.up.isDown) body.setVelocityY(-PLAYER_SPEED);
-    else if (this.cursors.down.isDown) body.setVelocityY(PLAYER_SPEED);
-    if (this.cursors.left.isDown) body.setVelocityX(-PLAYER_SPEED);
-    else if (this.cursors.right.isDown) body.setVelocityX(PLAYER_SPEED);
+    if (this.cursors.up.isDown) body.setVelocityY(-speed);
+    else if (this.cursors.down.isDown) body.setVelocityY(speed);
+    if (this.cursors.left.isDown) body.setVelocityX(-speed);
+    else if (this.cursors.right.isDown) body.setVelocityX(speed);
     if (body.velocity.x !== 0 && body.velocity.y !== 0) {
       body.setVelocity(body.velocity.x * 0.707, body.velocity.y * 0.707);
     }
+
+    this.powerups.update(delta);
 
     this.playerLabel.setPosition(this.player.x, this.player.y - 28);
 
@@ -197,6 +231,7 @@ export default class Stage3Scene extends Phaser.Scene {
     if (this.hasShot && ballInGoal && ballSpeed > 50) {
       this.stageComplete = true;
       this.physics.world.pause();
+      if (this.audio) this.audio.play('goal');
 
       const goalCenter = gz.y + gz.height / 2;
       const distFromCenter = Math.abs(this.ball.y - goalCenter);
@@ -236,6 +271,7 @@ export default class Stage3Scene extends Phaser.Scene {
     if (this.hasShot && !ballInGoal && this.ball.x >= GAME_WIDTH - BALL_RADIUS - 5) {
       this.stageComplete = true;
       this.physics.world.pause();
+      if (this.audio) this.audio.play('fail');
 
       this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2, '射偏了...', {
         fontSize: '40px', fontFamily: 'Arial', color: '#ff6666',

@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { GAME_WIDTH, GAME_HEIGHT } from './constants.js';
 import GlobalTimerPlugin from './systems/GlobalTimerPlugin.js';
+import AudioManager from './systems/AudioManager.js';
 
 import BootScene from './scenes/BootScene.js';
 import MenuScene from './scenes/MenuScene.js';
@@ -10,6 +11,7 @@ import Stage3Scene from './scenes/Stage3Scene.js';
 import TransitionScene from './scenes/TransitionScene.js';
 import GameOverScene from './scenes/GameOverScene.js';
 import LeaderboardScene from './scenes/LeaderboardScene.js';
+import PauseScene from './scenes/PauseScene.js';
 
 const config = {
   type: Phaser.AUTO,
@@ -31,6 +33,7 @@ const config = {
   plugins: {
     global: [
       { key: 'GlobalTimerPlugin', plugin: GlobalTimerPlugin, start: true },
+      { key: 'AudioManager', plugin: AudioManager, start: true },
     ],
   },
   scene: [
@@ -42,6 +45,7 @@ const config = {
     TransitionScene,
     GameOverScene,
     LeaderboardScene,
+    PauseScene,
   ],
 };
 

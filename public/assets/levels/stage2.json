@@ -20,6 +20,12 @@
     { "x": 500, "y": 420, "points": 150 },
     { "x": 250, "y": 300, "points": 200 }
   ],
+  "powerups": [
+    { "type": "speed", "x": 480, "y": 120, "respawnMs": 15000, "maxCount": 1 },
+    { "type": "magnet", "x": 150, "y": 450, "respawnMs": 18000, "maxCount": 1 },
+    { "type": "time", "x": 700, "y": 420, "respawnMs": 22000, "maxCount": 1 },
+    { "type": "double", "x": 420, "y": 460, "respawnMs": 20000, "maxCount": 1 }
+  ],
   "timeBonus": { "thresholdMs": 25000, "bonus": 500 },
   "background": { "color": "#1a3a5c" }
 }

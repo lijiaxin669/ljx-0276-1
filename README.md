@@ -8,6 +8,8 @@ BootScene ──→ MenuScene ──→ Stage1Scene ──→ TransitionScene �
                                      └──────────────────── 超时(90s) ──→ GameOverScene ◄──────────────┘                  │
                                                                                                                          │
                                               LeaderboardScene ◄────────────── MenuScene / GameOverScene
+
+任意关卡进行中：按 ESC / P ──→ PauseScene（叠加浮层，暂停物理与全局计时）
 ```
 
 ### 场景职责
@@ -22,6 +24,7 @@ BootScene ──→ MenuScene ──→ Stage1Scene ──→ TransitionScene �
 | **Stage3Scene** | `Stage3Scene` | 第三关「射门」：玩家 B (方向键) 带球射门，守门员上下巡逻 |
 | **GameOverScene** | `GameOverScene` | 结算：显示各关得分 + 总分，输入昵称（4字），写入排行榜 |
 | **LeaderboardScene** | `LeaderboardScene` | 今日排行榜：展示前 10 名（昵称 / 分数 / 时间） |
+| **PauseScene** | `PauseScene` | 暂停浮层：继续 / 重新开始 / 返回菜单 + 音效·音乐·音量设置 |
 
 ### 全局计时
 
@@ -47,6 +50,10 @@ BootScene ──→ MenuScene ──→ Stage1Scene ──→ TransitionScene �
 | `relayZone` | 160×120 | 接力区域标识 | 半透明区域纹理 |
 | `goal` | 60×200 | 球门 | 球门精灵图 |
 | `goalkeeper` | 30×80 | 守门员 | 守门员精灵图 |
+| `pu_speed` | 28×28 | 道具·加速鞋 | 加速类道具图标 |
+| `pu_magnet` | 28×28 | 道具·磁铁 | 磁铁类道具图标 |
+| `pu_time` | 28×28 | 道具·时间沙漏 | 加时类道具图标 |
+| `pu_double` | 28×28 | 道具·双倍得分 | 双倍类道具图标 |
 
 ### 关卡 JSON 配置
 
@@ -133,6 +140,9 @@ preload() {
   "collectibles": [                     // 收集物列表
     { "x": 320, "y": 120, "points": 100 }
   ],
+  "powerups": [                         // 道具列表（详见「道具系统」一节）
+    { "type": "speed", "x": 350, "y": 320 }
+  ],
   "timeBonus": {                        // 时间奖励
     "thresholdMs": 20000,               // 完成时间低于此值获奖励
     "bonus": 500                        // 奖励分数
@@ -205,13 +215,81 @@ ports:
 
 ---
 
-## 六、脏词过滤
+## 六、道具系统（功能迭代）
+
+三关均支持在场景中放置可拾取道具，玩家碰到即触发临时增益，并附带拾取加分与音画反馈。由 `src/systems/PowerUpManager.js` 统一管理（生成、拾取、计时、右上角 HUD），各关卡在 `create()` 中实例化、注册玩家与球，在 `update(delta)` 中驱动。
+
+### 道具类型
+
+| type | 名称 | 效果 | 持续时间 |
+|------|------|------|---------|
+| `speed` | 加速鞋 | 玩家移动速度 ×1.6 | 6 秒 |
+| `magnet` | 磁铁 | 球被最近玩家吸附（范围内） | 5 秒 |
+| `time` | 时间沙漏 | 全局倒计时立即 +5 秒（瞬发） | 瞬发 |
+| `double` | 双倍得分 | 金币 / 道具拾取分翻倍 | 8 秒 |
+
+> 拾取任意道具额外 +80 分（受双倍影响）。效果数值集中在 `src/constants.js` 的 `POWERUP_TYPES`，可直接调参。
+
+### 关卡 JSON 配置
+
+在任意关卡 JSON 中加入 `powerups` 数组：
+
+```jsonc
+"powerups": [
+  { "type": "speed", "x": 350, "y": 320 },
+  { "type": "magnet", "x": 470, "y": 130 },
+  // 可选：拾取后定时刷新（同一坐标最多 maxCount 个）
+  { "type": "double", "x": 600, "y": 420, "respawnMs": 8000, "maxCount": 1 }
+]
+```
+
+| 字段 | 说明 |
+|------|------|
+| `type` | 道具类型，须为上表四种之一 |
+| `x` / `y` | 道具中心坐标（画布 960×540，左上为原点） |
+| `respawnMs` | 可选，拾取后每隔多少毫秒尝试刷新 |
+| `maxCount` | 可选，同条目同时存在上限（默认 1） |
+
+新增道具类型：在 `POWERUP_TYPES` 增加定义，在 `BootScene.generatePowerUpTextures()` 生成 `pu_<type>` 纹理，并在 `PowerUpManager` 的 `TEXTURE_BY_TYPE` 与 `_applyEffect` 中接入效果即可。
+
+---
+
+## 七、音效 / 暂停 / 设置系统（功能迭代）
+
+### 程序化音效
+
+`src/systems/AudioManager.js` 注册为 Phaser 全局插件，使用 Web Audio API 实时合成全部音效与一段循环 BGM，**无需任何音频素材文件**，纯静态部署即可。任意场景通过 `this.plugins.get('AudioManager').play(name)` 触发：
+
+| 事件 | name | 触发位置 |
+|------|------|---------|
+| 按钮点击 / 悬停 | `click` / `hover` | 各菜单按钮 |
+| 踢球 | `kick` | 玩家与球碰撞 |
+| 收集金币 | `collect` | 拾取 collectible |
+| 拾取道具 | `powerup` | 拾取 powerup |
+| 倒计时 / 开始 | `tick` / `go` | 关卡开场 3-2-1 |
+| 传球成功 | `pass` | 第二关接力判定 |
+| 过关 / 进球 | `success` / `goal` | 关卡完成 |
+| 失败 / 超时 | `fail` | 射偏 / 超时结算 |
+
+> 浏览器自动播放策略要求首次用户交互后才能出声。`MenuScene` 在首次 `pointerdown` / `keydown` 时调用 `audio.unlock()` 并按设置启动 BGM。
+
+### 设置持久化
+
+`src/systems/SettingsManager.js` 将「静音 / 音量 / BGM 开关」写入 `localStorage`（键 `family_relay_settings`）。主菜单右上角有快捷音效开关；暂停浮层内可调节音效、音乐与音量（步进 10%）。
+
+### 暂停浮层
+
+关卡进行中按 `ESC` 或 `P` 唤起 `PauseScene`：叠加在关卡之上并暂停其物理与更新；`GlobalTimerPlugin.pauseTimer()` 同步冻结 90 秒倒计时（恢复时补偿暂停期间流逝的真实时间，确保不被消耗）。浮层提供「继续 / 重新开始 / 返回主菜单」。
+
+---
+
+## 八、脏词过滤
 
 脏词列表位于 `src/data/badwords.json`，为数组格式。添加/删除词条只需编辑此文件后重新构建。
 
 ---
 
-## 七、项目结构总览
+## 九、项目结构总览
 
 ```
 ├── public/
@@ -222,20 +300,24 @@ ports:
 │           └── stage3.json
 ├── src/
 │   ├── main.js                        # 入口：Phaser 配置 + 插件注册
-│   ├── constants.js                    # 全局常量
+│   ├── constants.js                    # 全局常量（含道具/音效配置）
 │   ├── scenes/
-│   │   ├── BootScene.js               # 预加载 & 纹理生成
-│   │   ├── MenuScene.js               # 主菜单
+│   │   ├── BootScene.js               # 预加载 & 纹理生成（含道具纹理）
+│   │   ├── MenuScene.js               # 主菜单（道具图例 + 音效开关）
 │   │   ├── Stage1Scene.js             # 第一关：运球
 │   │   ├── Stage2Scene.js             # 第二关：传球
 │   │   ├── Stage3Scene.js             # 第三关：射门
 │   │   ├── TransitionScene.js         # 关卡过场
 │   │   ├── GameOverScene.js           # 结算 & 昵称输入
-│   │   └── LeaderboardScene.js        # 排行榜
+│   │   ├── LeaderboardScene.js        # 排行榜
+│   │   └── PauseScene.js              # 暂停 / 设置浮层
 │   ├── systems/
 │   │   ├── AABBCollision.js           # AABB 碰撞工具
-│   │   ├── GlobalTimerPlugin.js       # 全局 90s 计时插件
-│   │   └── LeaderboardManager.js      # 排行榜 (localStorage)
+│   │   ├── GlobalTimerPlugin.js       # 全局 90s 计时插件（支持暂停/加时）
+│   │   ├── LeaderboardManager.js      # 排行榜 (localStorage)
+│   │   ├── PowerUpManager.js          # 道具系统管理器
+│   │   ├── AudioManager.js            # 程序化音效全局插件
+│   │   └── SettingsManager.js         # 音效设置持久化
 │   └── data/
 │       └── badwords.json              # 脏词列表
 ├── index.html

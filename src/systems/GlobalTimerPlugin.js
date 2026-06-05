@@ -8,12 +8,62 @@ class GlobalTimerPlugin extends Phaser.Plugins.BasePlugin {
     this.timerText = null;
     this.timerBg = null;
     this.currentScene = null;
+    this.bonusMs = 0;
+    this.paused = false;
+    this._pauseWallClock = 0;
+  }
+
+  /** 当前墙钟时间（与 scene.time.now 同一时间基准，单位 ms）。 */
+  _wallClock() {
+    if (this.currentScene && this.currentScene.time) return this.currentScene.time.now;
+    return (typeof performance !== 'undefined' ? performance.now() : Date.now());
+  }
+
+  /** 时间沙漏道具：把截止时间整体后移 ms（等价于延长剩余时间）。 */
+  addTime(ms) {
+    if (!ms) return;
+    this.bonusMs += ms;
+    if (this.timerText) this._flashBonus(ms);
+  }
+
+  _flashBonus(ms) {
+    const scene = this.currentScene;
+    if (!scene) return;
+    const txt = scene.add.text(GAME_WIDTH / 2, 44, '+' + Math.round(ms / 1000) + '秒', {
+      fontSize: '20px', fontFamily: 'Arial', color: '#ffcc00',
+      stroke: '#000', strokeThickness: 3,
+    }).setOrigin(0.5).setDepth(1001).setScrollFactor(0);
+    scene.tweens.add({
+      targets: txt,
+      y: 20,
+      alpha: 0,
+      duration: 900,
+      ease: 'Cubic.easeOut',
+      onComplete: () => txt.destroy(),
+    });
+  }
+
+  /** 暂停计时（PauseScene 进入时调用）。 */
+  pauseTimer() {
+    if (this.paused) return;
+    this.paused = true;
+    this._pauseWallClock = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+  }
+
+  /** 恢复计时：把暂停期间流逝的真实时间补偿进 startTime，确保倒计时不被消耗。 */
+  resumeTimer() {
+    if (!this.paused) return;
+    this.paused = false;
+    const now = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+    this.startTime += (now - this._pauseWallClock);
   }
 
   startTimer(scene) {
     if (!this.started) {
       this.started = true;
       this.startTime = scene.time.now;
+      this.bonusMs = 0;
+      this.paused = false;
     }
     this.currentScene = scene;
 
@@ -37,9 +87,10 @@ class GlobalTimerPlugin extends Phaser.Plugins.BasePlugin {
 
   onUpdate() {
     if (!this.started || !this.currentScene || this.currentScene.stageComplete) return;
+    if (this.paused) return;
 
     const elapsed = this.currentScene.time.now - this.startTime;
-    const remaining = Math.max(0, TOTAL_TIME_MS - elapsed);
+    const remaining = Math.max(0, TOTAL_TIME_MS + this.bonusMs - elapsed);
     const secs = Math.ceil(remaining / 1000);
 
     this.timerText.setText('剩余时间: ' + secs + '秒');

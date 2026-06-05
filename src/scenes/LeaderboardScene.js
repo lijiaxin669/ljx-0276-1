@@ -8,6 +8,8 @@ export default class LeaderboardScene extends Phaser.Scene {
   }
 
   create() {
+    this.audio = this.plugins.get('AudioManager');
+
     this.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x0e0e2a).setOrigin(0);
 
     this.add.text(GAME_WIDTH / 2, 40, '今日排行榜', {
@@ -60,8 +62,14 @@ export default class LeaderboardScene extends Phaser.Scene {
       fontSize: '24px', fontFamily: 'Arial', color: '#aaaaaa',
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
 
-    backBtn.on('pointerover', () => backBtn.setStyle({ color: '#ffffff' }));
+    backBtn.on('pointerover', () => {
+      backBtn.setStyle({ color: '#ffffff' });
+      if (this.audio) this.audio.play('hover');
+    });
     backBtn.on('pointerout', () => backBtn.setStyle({ color: '#aaaaaa' }));
-    backBtn.on('pointerdown', () => this.scene.start('MenuScene'));
+    backBtn.on('pointerdown', () => {
+      if (this.audio) this.audio.play('click');
+      this.scene.start('MenuScene');
+    });
   }
 }

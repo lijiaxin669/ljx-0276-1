@@ -16,6 +16,12 @@
     { "x": 450, "y": 140, "points": 200 },
     { "x": 600, "y": 440, "points": 200 }
   ],
+  "powerups": [
+    { "type": "speed", "x": 250, "y": 300, "respawnMs": 15000, "maxCount": 1 },
+    { "type": "time", "x": 480, "y": 320, "respawnMs": 20000, "maxCount": 1 },
+    { "type": "double", "x": 720, "y": 130, "respawnMs": 18000, "maxCount": 1 },
+    { "type": "magnet", "x": 400, "y": 150, "respawnMs": 22000, "maxCount": 1 }
+  ],
   "shootBonus": { "centerTarget": 1000, "sideTarget": 500 },
   "timeBonus": { "thresholdMs": 25000, "bonus": 500 },
   "background": { "color": "#3a5a1a" }

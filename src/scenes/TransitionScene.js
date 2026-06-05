@@ -7,6 +7,9 @@ export default class TransitionScene extends Phaser.Scene {
   }
 
   create(data) {
+    const audio = this.plugins.get('AudioManager');
+    if (audio) audio.play('tick');
+
     this.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x0a0a1e).setOrigin(0);
 
     const fromStage = data.fromStage || 1;

@@ -3,6 +3,7 @@ import {
   GAME_WIDTH, GAME_HEIGHT, BALL_RADIUS, PLAYER_SIZE,
   PLAYER_SPEED, BALL_FRICTION, BALL_KICK_FORCE, PASS_RELAY_DWELL_MS,
 } from '../constants.js';
+import PowerUpManager from '../systems/PowerUpManager.js';
 
 export default class Stage2Scene extends Phaser.Scene {
   constructor() {
@@ -18,6 +19,7 @@ export default class Stage2Scene extends Phaser.Scene {
 
     this.stageScore = 0;
     this.stageStartTime = this.time.now;
+    this.audio = this.plugins.get('AudioManager');
     this.passComplete = false;
     this.inRelayZone = false;
     this.relayTimer = 0;
@@ -92,6 +94,19 @@ export default class Stage2Scene extends Phaser.Scene {
     this.physics.add.collider(this.playerB, this.ball, this.kickBallB, null, this);
     this.physics.add.overlap([this.playerA, this.playerB], this.collectibles, this.collectItem, null, this);
 
+    // 道具系统：A、B 双人均可拾取
+    this.powerups = new PowerUpManager(this, {
+      onPickup: (gained) => {
+        this.stageScore += gained;
+        this.scoreText.setText('得分: ' + this.stageScore);
+        if (this.audio) this.audio.play('powerup');
+      },
+    });
+    this.powerups.registerCollector(this.playerA);
+    this.powerups.registerCollector(this.playerB);
+    this.powerups.setBall(this.ball);
+    this.powerups.spawnFromConfig(cfg.powerups);
+
     this.cursorsA = {
       W: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.W),
       A: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A),
@@ -104,6 +119,9 @@ export default class Stage2Scene extends Phaser.Scene {
       down: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.DOWN),
       right: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.RIGHT),
     };
+
+    this.input.keyboard.on('keydown-ESC', this.openPause, this);
+    this.input.keyboard.on('keydown-P', this.openPause, this);
 
     this.scoreText = this.add.text(16, 16, '得分: 0', {
       fontSize: '20px', fontFamily: 'Arial', color: '#ffffff',
@@ -142,6 +160,7 @@ export default class Stage2Scene extends Phaser.Scene {
 
     this.physics.world.pause();
     let count = 3;
+    if (this.audio) this.audio.play('tick');
     this.time.addEvent({
       delay: 800,
       repeat: 2,
@@ -149,8 +168,10 @@ export default class Stage2Scene extends Phaser.Scene {
         count--;
         if (count > 0) {
           this.countdownText.setText(String(count));
+          if (this.audio) this.audio.play('tick');
         } else {
           this.countdownText.setText('GO!');
+          if (this.audio) this.audio.play('go');
           this.time.delayedCall(400, () => {
             this.countdownText.destroy();
             this.physics.world.resume();
@@ -160,6 +181,14 @@ export default class Stage2Scene extends Phaser.Scene {
     });
   }
 
+  openPause() {
+    if (this.stageComplete) return;
+    if (this.scene.isActive('PauseScene')) return;
+    if (this.audio) this.audio.play('click');
+    this.scene.launch('PauseScene', { stageKey: this.scene.key });
+    this.scene.pause();
+  }
+
   kickBallA(player, ball) {
     if (this.passComplete) return;
     const dx = ball.x - player.x;
@@ -167,6 +196,7 @@ export default class Stage2Scene extends Phaser.Scene {
     const dist = Math.sqrt(dx * dx + dy * dy);
     if (dist === 0) return;
     ball.setVelocity((dx / dist) * BALL_KICK_FORCE, (dy / dist) * BALL_KICK_FORCE * 0.6);
+    if (this.audio) this.audio.play('kick');
   }
 
   kickBallB(player, ball) {
@@ -175,25 +205,30 @@ export default class Stage2Scene extends Phaser.Scene {
     const dist = Math.sqrt(dx * dx + dy * dy);
     if (dist === 0) return;
     ball.setVelocity((dx / dist) * BALL_KICK_FORCE, (dy / dist) * BALL_KICK_FORCE * 0.6);
+    if (this.audio) this.audio.play('kick');
   }
 
   collectItem(player, coin) {
-    const pts = coin.getData('points') || 100;
+    const base = coin.getData('points') || 100;
+    const pts = Math.round(base * this.powerups.getScoreMultiplier());
     this.stageScore += pts;
     this.scoreText.setText('得分: ' + this.stageScore);
+    if (this.audio) this.audio.play('collect');
     coin.destroy();
   }
 
   update(time, delta) {
     if (this.stageComplete) return;
 
+    const speed = PLAYER_SPEED * this.powerups.getSpeedMultiplier();
+
     if (!this.passComplete) {
       const bodyA = this.playerA.body;
       bodyA.setVelocity(0);
-      if (this.cursorsA.W.isDown) bodyA.setVelocityY(-PLAYER_SPEED);
-      else if (this.cursorsA.S.isDown) bodyA.setVelocityY(PLAYER_SPEED);
-      if (this.cursorsA.A.isDown) bodyA.setVelocityX(-PLAYER_SPEED);
-      else if (this.cursorsA.D.isDown) bodyA.setVelocityX(PLAYER_SPEED);
+      if (this.cursorsA.W.isDown) bodyA.setVelocityY(-speed);
+      else if (this.cursorsA.S.isDown) bodyA.setVelocityY(speed);
+      if (this.cursorsA.A.isDown) bodyA.setVelocityX(-speed);
+      else if (this.cursorsA.D.isDown) bodyA.setVelocityX(speed);
       if (bodyA.velocity.x !== 0 && bodyA.velocity.y !== 0) {
         bodyA.setVelocity(bodyA.velocity.x * 0.707, bodyA.velocity.y * 0.707);
       }
@@ -201,13 +236,15 @@ export default class Stage2Scene extends Phaser.Scene {
 
     const bodyB = this.playerB.body;
     bodyB.setVelocity(0);
-    if (this.cursorsB.up.isDown) bodyB.setVelocityY(-PLAYER_SPEED);
-    else if (this.cursorsB.down.isDown) bodyB.setVelocityY(PLAYER_SPEED);
-    if (this.cursorsB.left.isDown) bodyB.setVelocityX(-PLAYER_SPEED);
-    else if (this.cursorsB.right.isDown) bodyB.setVelocityX(PLAYER_SPEED);
+    if (this.cursorsB.up.isDown) bodyB.setVelocityY(-speed);
+    else if (this.cursorsB.down.isDown) bodyB.setVelocityY(speed);
+    if (this.cursorsB.left.isDown) bodyB.setVelocityX(-speed);
+    else if (this.cursorsB.right.isDown) bodyB.setVelocityX(speed);
     if (bodyB.velocity.x !== 0 && bodyB.velocity.y !== 0) {
       bodyB.setVelocity(bodyB.velocity.x * 0.707, bodyB.velocity.y * 0.707);
     }
+
+    this.powerups.update(delta);
 
     this.labelA.setPosition(this.playerA.x, this.playerA.y - 28);
     this.labelB.setPosition(this.playerB.x, this.playerB.y - 28);
@@ -245,6 +282,7 @@ export default class Stage2Scene extends Phaser.Scene {
           this.inRelayZone = false;
           this.dwellBar.setSize(0, 0);
           this.dwellText.setText('');
+          if (this.audio) this.audio.play('pass');
 
           this.passResultText = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 40, '传球成功！玩家B接球！', {
             fontSize: '32px', fontFamily: 'Arial', color: '#00ff88',
@@ -277,6 +315,7 @@ export default class Stage2Scene extends Phaser.Scene {
       if (playerBInZone && ballInZone) {
         this.stageComplete = true;
         this.physics.world.pause();
+        if (this.audio) this.audio.play('success');
 
         const elapsed = this.time.now - this.stageStartTime;
         const timeBonus = elapsed < this.stageConfig.timeBonus.thresholdMs
